@@ -22,12 +22,18 @@ def setup_args():
         default='graph_output.xlsx',
         help='Directory where the Excel file should be saved (e.g., C:/Users/YourName/Path/graph_output.xlsx)'
     )
+    parser.add_argument(
+        '--text_path',
+        type=str,
+        default='graph_output.txt',
+        help='Directory where the text file should be saved (e.g., C:/Users/YourName/Path/graph_output.txt)'
+    )
     args = parser.parse_args()
     return args
 
 
 def convert_graph_to_sets_and_matrix(graph, num_nodes):
-    directed_edges = []
+    directed_edges = set()
     undirected_edges = set()  # Use a set to avoid adding both (u, v) and (v, u)
 
     # Create an empty distance matrix with 0s
@@ -37,24 +43,31 @@ def convert_graph_to_sets_and_matrix(graph, num_nodes):
     for edge in graph.edges.values():
         u, v, weight, directed = edge.head, edge.tail, edge.weight, edge.directed
         if directed:
-            directed_edges.append((u, v))  # Directed edge (u, v)
+            # Check if the reverse edge exists in directed edges
+            if (v, u) in directed_edges:
+                # If reverse edge exists, move both to undirected edges
+                undirected_edges.add((min(u, v), max(u, v)))
+                directed_edges.remove((v, u))
+            else:
+                directed_edges.add((u, v))  # Add the directed edge
             distance_matrix[u - 1][v - 1] = weight  # Directed distance
         else:
             # Ensure that only (u, v) or (v, u) is added once by using a sorted tuple
-            edge_tuple = tuple(sorted((u, v)))  # Sorting ensures that (u, v) and (v, u) are treated as the same
-            if edge_tuple not in undirected_edges:
-                undirected_edges.add(edge_tuple)  # Add the edge as a tuple
-                distance_matrix[u - 1][v - 1] = weight
-                distance_matrix[v - 1][u - 1] = weight  # Symmetric for undirected
+            undirected_edges.add((min(u, v), max(u, v)))
+            distance_matrix[u - 1][v - 1] = weight
+            distance_matrix[v - 1][u - 1] = weight  # Symmetric for undirected
+
+    # Check if any directed edges are in the undirected edges and remove them
+    directed_edges = {edge for edge in directed_edges if (min(edge), max(edge)) not in undirected_edges}
 
     # Convert the undirected_edges set back to a list of tuples
     undirected_edges_list = [(u, v) for u, v in undirected_edges]
 
-    return directed_edges, undirected_edges_list, distance_matrix
+    return list(directed_edges), undirected_edges_list, distance_matrix
 
 
-def save_to_excel(directed_edges, undirected_edges, distance_matrix, save_path):
-    """Save directed set, undirected set, and distance matrix to an Excel file."""
+def save_to_excel_and_text(directed_edges, undirected_edges, distance_matrix, save_path, text_path):
+    """Save directed set, undirected set, and distance matrix to an Excel file and a text file."""
     with pd.ExcelWriter(save_path) as writer:
         # Convert directed edges to a formatted string and save to sheet
         directed_str = "set A_d := " + " ".join(f"({u},{v})" for u, v in directed_edges) + " ;"
@@ -72,7 +85,14 @@ def save_to_excel(directed_edges, undirected_edges, distance_matrix, save_path):
                                  columns=range(1, distance_matrix.shape[1] + 1))  # Set columns starting from 1
         df_matrix.to_excel(writer, sheet_name='Distance_Matrix', index=True)
 
-    print(f'Data saved to {save_path}')
+    # Also save to a text file
+    with open(text_path, 'w') as text_file:
+        text_file.write(directed_str + "\n\n")
+        text_file.write(undirected_str + "\n\n")
+        text_file.write("Distance Matrix:\n")
+        np.savetxt(text_file, distance_matrix, fmt='%d', delimiter='\t', header='Matrix\n', comments='')
+
+    print(f'Data saved to {save_path} and {text_path}')
 
 
 def main():
@@ -81,6 +101,7 @@ def main():
     args = setup_args()
     graph_name = args.graph
     save_path = args.save_path
+    text_path = args.text_path
 
     try:
         print(f'Loading graph: {graph_name}')
@@ -112,8 +133,8 @@ def main():
     # Convert the graph to sets of directed and undirected edges and a distance matrix
     directed_edges, undirected_edges, distance_matrix = convert_graph_to_sets_and_matrix(graph, num_nodes)
 
-    # Save the directed, undirected edges and distance matrix to an Excel file
-    save_to_excel(directed_edges, undirected_edges, distance_matrix, save_path)
+    # Save the directed, undirected edges and distance matrix to an Excel file and a text file
+    save_to_excel_and_text(directed_edges, undirected_edges, distance_matrix, save_path, text_path)
 
     # Attempt to solve Eulerian Circuit
     print('Attempting to solve Eulerian Circuit...')

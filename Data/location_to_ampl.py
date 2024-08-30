@@ -9,6 +9,7 @@ def main():
     location_name = input("Enter the location name (e.g., Fairview, Halifax, Nova Scotia, Canada): ")
     save_path = input("Enter the directory where files should be saved (e.g., C:/Users/YourName/Path/): ")
     data_name = input("Enter the name of the data (e.g., fairview): ")
+    text_path = os.path.join(save_path, f'{data_name}_network_data.txt')
 
     # Step 1: Download the road network for the specified location
     G = ox.graph_from_place(location_name, network_type='drive')
@@ -77,6 +78,15 @@ def main():
     with pd.ExcelWriter(network_data_path, mode='a') as writer:
         distance_matrix.to_excel(writer, sheet_name='Distance Matrix')
 
+    # Save the nodes, edges, and distance matrix data to a text file
+    with open(text_path, 'w') as text_file:
+        text_file.write("Nodes:\n")
+        nodes.to_string(text_file)
+        text_file.write("\n\nEdges:\n")
+        edges.to_string(text_file)
+        text_file.write("\n\nDistance Matrix:\n")
+        distance_matrix.to_string(text_file)
+
     # Step 9: Plot the road network graph and save the image
     fig, ax = ox.plot_graph(G, show=False, close=False)
     fig.savefig(os.path.join(save_path, f'{data_name}.png'), dpi=300)
@@ -140,9 +150,9 @@ def main():
 
     print(f"Data for '{data_name}' saved to '{data_file_path}'")
 
-    # Part 3: Run the main.py script with the data_name and save path as arguments
+    # Part 3: Run the main.py script with the data_name, save_path, and text_path as arguments
     main_py_output_path = os.path.join(save_path, f'{data_name}_output.xlsx')
-    os.system(f"python {os.path.join(project_root, 'Chinese-Postman-master', 'main.py')} {data_name} --save_path \"{main_py_output_path}\"")
+    os.system(f"python {os.path.join(project_root, 'Chinese-Postman-master', 'main.py')} {data_name} --save_path \"{main_py_output_path}\" --text_path \"{text_path}\"")
 
 if __name__ == "__main__":
     main()
