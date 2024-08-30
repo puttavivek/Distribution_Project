@@ -39,7 +39,7 @@ def find_all_routes(routes, start_node, distances):
     return route[::-1], total_distance  # Reverse the list to get the route in the right order
 
 # Load routes from the text file
-file_path = r"C:\Users\putta\OneDrive - Dalhousie University\Distribution Management\Projects\Data\X\southendv1.txt"  # Replace with actual path
+file_path = r"../Data/AMPLoutput.txt"  # Replace with actual path
 routes, distances = read_routes_from_file(file_path)
 
 # Specify the starting node
